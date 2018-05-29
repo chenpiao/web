@@ -18,6 +18,11 @@ type Url struct {
 	Status     []*model.ItemStatus `json:"status"`
 }
 
+type Value struct {
+	Data       []Url              `json:"data"`
+	Time       []string           `json:"time"`
+}
+
 func UrlStatus(w http.ResponseWriter, r *http.Request) {
 	sid := param.MustInt64(r, "id")
 
@@ -48,6 +53,20 @@ func UrlStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	//var DataMap map[string]Value
+	DataMap := make(map[string]Value)
+	for _, item := range urlArr {
+		var timeList []string
+		for _, item := range item.Status {
+			t := utils.TimeFormat(item.PushTime)
+			timeList = append(timeList, t)
+		}
+		value := DataMap[item.MonitorIdc]
+		value.Time = timeList
+		value.Data = append(value.Data, item)
+		DataMap[item.MonitorIdc] = value
+	}
+
 	//绘图使用，时间轴
 	var timeData []string
 	if len(urlArr) > 0 {
@@ -69,5 +88,6 @@ func UrlStatus(w http.ResponseWriter, r *http.Request) {
 	render.Data(r, "Url", strategy.Url)
 	render.Data(r, "Events", events)
 	render.Data(r, "Data", urlArr)
+	render.Data(r, "DataMap", DataMap)
 	render.HTML(r, w, "chart/index")
 }

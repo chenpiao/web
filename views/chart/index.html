@@ -1,89 +1,138 @@
 <!DOCTYPE html>
 <html>
-    <head>
-    	 {{ template "inc/head" . }}
-        <script src="/lib/echarts/echarts.min.js"></script>
-    </head>
-    {{ template "inc/nav_chart" . }}
-
-    <body>
-    <div id="main"></div>
-    {{ if .AlarmOn }}
-    <div id="event">
-    <div id="alarm_title">告警历史</div>
-    <table class="table table-hover table-bordered table-striped">
-            <thead>
-            <tr>
-                <th>Status</th>
-                <th>上报值</th>
-                <th>Url</th>
-                <th>Ip</th>
-                <th>返回码</th>
-                <th>响应时间</th>
-                <th>时间</th>
-                <th>机房</th>
-            </tr>
-            </thead>
-            <tbody>
-                {{range .Events}}
-                <tr>
-                	<td width="20%">{{.Status}}</td>
-                    <td width="10%">{{.Result}}</td>
-                    <td id="item_target" width="35%" style="word-wrap:break-word;word-break:break-all;">{{.Url}}</td>
-                    <td width="10%">{{.Ip}}</td>
-                    <td width="5%">{{.RespCode}}</td>
-                    <td width="5%">{{.RespTime}}</td>
-                    <td width="20%">{{HumenTime .EventTime}}</td>
-                    <td width="20%">{{.MonitorIdc}}</td>
-                </tr>
-                {{end}}
-            </tbody>
-        </table>
-
-       </div>
-       {{ end }}
-
-
+<head>
+{{ template "inc/head" . }}
+  <script src="/lib/echarts/echarts.min.js"></script>
+</head>
+{{ template "inc/nav_chart" . }}
+<body>
+<ul class="nav nav-tabs" id="EchartsTab" style="display:table; margin:0 auto;">
+{{range $key, $value := .DataMap}}
+  <li><a href="#echarts-{{$key}}" >{{$key}}</a></li></li>
+{{end}}
+  <li class="active"><a href="#echarts-main" >all</a></li></li>
+</ul>
+<div class="tab-content">
+  <div class="tab-pane active" id="echarts-main">
+    <div id="main" class="echarts"></div>
     <script type="text/javascript">
-        // 基于准备好的dom，初始化echarts实例
-        var myChart = echarts.init(document.getElementById('main'));
+      var echarts_object = {};
+      var echarts_timeData = {};
+      var echarts_option = {};
+      echarts_object['main'] = echarts.init(document.getElementById('main'));
+      echarts_timeData['main'] = [{{range .TimeData}} {{.}}, {{end}}]
+      echarts_option['main'] = {
+        title: {
+          text: ''
+        },
+        tooltip: {
+          trigger: 'axis'
+        },
 
-        var timeData = [{{range .TimeData}} {{.}}, {{end}}]
-        // 指定图表的配置项和数据
-        var option = {
-            title: {
-                text: ''
-            },
-            tooltip: {
-                trigger: 'axis'
-            },
+        legend: {
+          data:[{{range .Data}} '{{.Ip}}-{{.MonitorIdc}}', {{end}}]
+        },
+        xAxis: {
+          type: 'category',
 
-            legend: {
-            	data:[{{range .Data}} '{{.Ip}}', {{end}}]
-            },
-            xAxis: {
-                type: 'category',
-                
-                data: timeData
-            },
-            yAxis: {},
-            series: [
-            {{range .Data}}
-            {
-                name: '{{.Ip}}-{{.MonitorIdc}}',
-                type: 'line',
-                symbolSize: 8,
-                hoverAnimation: false,
-                data:[{{range .Status}}{{.RespTime}},{{end}}]
-            },
-            {{end}}
-            ]
-        };
-
-        // 使用刚指定的配置项和数据显示图表。
-        myChart.setOption(option);
+          data: echarts_timeData['main']
+        },
+        yAxis: {},
+        series: [
+        {{range .Data}}
+          {
+            name: '{{.Ip}}-{{.MonitorIdc}}',
+            type: 'line',
+            symbolSize: 8,
+            hoverAnimation: false,
+            data:[{{range .Status}}{{.RespTime}},{{end}}]
+          },
+        {{end}}
+        ]
+      };
+      echarts_object['main'].setOption(echarts_option['main']);
     </script>
-    
+  </div>
+{{range $key, $value := .DataMap}}
+  <div class="tab-pane" id="echarts-{{$key}}">
+    <div id="{{$key}}" class="echarts"></div>
+    <script type="text/javascript">
+      echarts_object[{{$key}}] = echarts.init(document.getElementById('{{ $key }}'));
+      echarts_timeData[{{$key}}] = [{{range $value.Time}} {{.}}, {{end}}]
+      echarts_option[{{$key}}] = {
+        title: {
+          text: ''
+        },
+        tooltip: {
+          trigger: 'axis'
+        },
+        legend: {
+          data:[{{range $value.Data}} '{{.Ip}}', {{end}}]
+        },
+        xAxis: {
+          type: 'category',
+          data: echarts_timeData[{{$key}}]
+        },
+        yAxis: {},
+        series: [
+        {{range $value.Data}}
+          {
+            name: '{{.Ip}}',
+            type: 'line',
+            symbolSize: 8,
+            hoverAnimation: false,
+            data:[{{range .Status}}{{.RespTime}},{{end}}]
+          },
+        {{end}}
+        ]
+      };
+      echarts_object[{{$key}}].setOption(echarts_option[{{$key}}]);
+    </script>
+  </div>
+{{end}}
+</div>
+<script>
+  $(function () {
+    $('#EchartsTab a:last').tab('show');
+    $('#EchartsTab a').click(function (e) {
+      e.preventDefault();
+      $(this).tab('show');
+    })
+  })
+</script>
+{{ if .AlarmOn }}
+<div id="event">
+  <div id="alarm_title">告警历史</div>
+  <table class="table table-hover table-bordered table-striped">
+    <thead>
+    <tr>
+      <th>Status</th>
+      <th>上报值</th>
+      <th>Url</th>
+      <th>Ip</th>
+      <th>返回码</th>
+      <th>响应时间</th>
+      <th>时间</th>
+      <th>机房</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{range .Events}}
+    <tr>
+      <td width="20%">{{.Status}}</td>
+      <td width="10%">{{.Result}}</td>
+      <td id="item_target" width="35%" style="word-wrap:break-word;word-break:break-all;">{{.Url}}</td>
+      <td width="10%">{{.Ip}}</td>
+      <td width="5%">{{.RespCode}}</td>
+      <td width="5%">{{.RespTime}}</td>
+      <td width="20%">{{HumenTime .EventTime}}</td>
+      <td width="20%">{{.MonitorIdc}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+</div>
+{{ end }}
 {{ template "inc/footer" . }}
 </body>
 </html>
